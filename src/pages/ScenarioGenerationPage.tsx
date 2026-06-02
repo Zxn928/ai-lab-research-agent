@@ -1,7 +1,6 @@
 import { Wand2 } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '../components/common/Button';
-import { EmptyState } from '../components/common/EmptyState';
 import { PageShell } from '../components/common/PageShell';
 import { Panel } from '../components/common/Panel';
 import { runAgent } from '../services/apiClient';
@@ -37,7 +36,6 @@ export function ScenarioGenerationPage({
     <PageShell
       title="AI场景生成"
       description="把已采纳或待确认的痛点转成 AI 场景卡片，并按 8 个维度评分。"
-      eyebrow="访谈后诊断 / 11"
       actions={
         <Button onClick={run} disabled={loading}>
           <Wand2 className="h-4 w-4" /> {loading ? '生成中' : '生成场景'}
@@ -62,7 +60,7 @@ export function ScenarioGenerationPage({
             </div>
           </Panel>
         ))}
-        {!state.scenarios.length && <EmptyState title="尚未生成 AI 场景" description="审核痛点清单后，点击右上角按钮生成可评分的 AI 场景卡片。" />}
+        {!state.scenarios.length && <Panel title="提示">尚未生成 AI 场景。</Panel>}
       </div>
     </PageShell>
   );

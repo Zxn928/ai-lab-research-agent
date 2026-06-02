@@ -39,7 +39,7 @@ export function CoverageCheckPage({
   };
 
   return (
-    <PageShell title="问题覆盖度检查" description="检查哪些访谈问题已覆盖、部分覆盖、未覆盖，并给出报告表达强度建议。" eyebrow="访谈后诊断 / 09">
+    <PageShell title="问题覆盖度检查" description="检查哪些访谈问题已覆盖、部分覆盖、未覆盖，并给出报告表达强度建议。">
       <div className="grid gap-4">
         {state.departments.map((department) => (
           <Panel

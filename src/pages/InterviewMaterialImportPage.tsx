@@ -39,7 +39,7 @@ export function InterviewMaterialImportPage({
   };
 
   return (
-    <PageShell title="访谈材料导入" description="按部门分别录入录音转写、会议纪要和项目负责人个人理解，三类信息不混写。" eyebrow="访谈后诊断 / 07">
+    <PageShell title="访谈材料导入" description="按部门分别录入录音转写、会议纪要和项目负责人个人理解，三类信息不混写。">
       <div className="grid gap-4">
         {state.departments.map((department) => {
           const material = state.interviewMaterials.find((item) => item.departmentId === department.id);

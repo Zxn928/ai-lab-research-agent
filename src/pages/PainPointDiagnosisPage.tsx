@@ -1,7 +1,6 @@
 import { Wand2 } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '../components/common/Button';
-import { EmptyState } from '../components/common/EmptyState';
 import { PageShell } from '../components/common/PageShell';
 import { Panel } from '../components/common/Panel';
 import { runAgent } from '../services/apiClient';
@@ -47,7 +46,6 @@ export function PainPointDiagnosisPage({
     <PageShell
       title="痛点诊断"
       description="从所有材料中提炼部门痛点和跨部门共性问题，所有关键痛点必须带证据链和可信度。"
-      eyebrow="访谈后诊断 / 10"
       actions={
         <Button onClick={run} disabled={loading}>
           <Wand2 className="h-4 w-4" /> {loading ? '诊断中' : '生成痛点'}
@@ -86,7 +84,7 @@ export function PainPointDiagnosisPage({
             </div>
           </Panel>
         ))}
-        {!state.painPoints.length && <EmptyState title="尚未生成痛点" description="完成访谈纪要结构化和覆盖度检查后，点击右上角按钮生成痛点清单。" />}
+        {!state.painPoints.length && <Panel title="提示">尚未生成痛点。</Panel>}
       </div>
     </PageShell>
   );

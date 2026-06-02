@@ -48,7 +48,6 @@ export function CompanyResearchPage({
     <PageShell
       title="企业信息收集"
       description="公网信息只作为访谈前假设，后续报告不会把它直接写成诊断结论。未配置搜索服务时，可以直接粘贴真实公开资料。"
-      eyebrow="访谈前准备 / 02"
       actions={
         <Button onClick={run} disabled={loading || !state.project?.companyName}>
           <Search className="h-4 w-4" /> {loading ? '收集中' : '自动收集'}

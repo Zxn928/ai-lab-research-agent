@@ -42,7 +42,6 @@ export function ReportDraftPage({
     <PageShell
       title="内部诊断报告"
       description="生成项目团队内部诊断报告 Markdown 初稿。报告遵循事实、判断、建议，不把推测写成事实。"
-      eyebrow="访谈后诊断 / 13"
       actions={
         <>
           <Button variant="secondary" onClick={run} disabled={loading}>
