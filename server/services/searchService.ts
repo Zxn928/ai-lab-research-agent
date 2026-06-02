@@ -1,6 +1,6 @@
 import type { SearchResult } from '../types/server';
 import { config } from './config';
-import { generateWebResearch, isOpenAIConfigured } from './openaiService';
+import { generateWebResearch, isOpenAIConfigured, isWebSearchEnabled } from './openaiService';
 
 export async function researchCompany({
   companyName,
@@ -9,7 +9,7 @@ export async function researchCompany({
   companyName: string;
   industry?: string;
 }): Promise<SearchResult> {
-  if (config.searchProvider === 'openai' && isOpenAIConfigured()) {
+  if (config.searchProvider === 'openai' && isOpenAIConfigured() && isWebSearchEnabled()) {
     const system = [
       '你是企业线下调研前的公开资料研究助手。',
       '只把公网信息作为访谈前假设，不能写成最终诊断结论。',
@@ -34,7 +34,7 @@ export async function researchCompany({
 
   return {
     publicResearch:
-      '未配置可用搜索服务。请手动粘贴企业公开资料，系统会将其作为访谈前假设，不会作为最终诊断结论。',
+      '未配置可用搜索服务，或当前中转站未启用 web_search。请手动粘贴企业公开资料，系统会将其作为访谈前假设，不会作为最终诊断结论。',
     sources: [],
     assumptions: ['需要人工补充企业官网、新闻、招聘、公开资质等资料。']
   };

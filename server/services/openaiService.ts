@@ -2,10 +2,14 @@ import OpenAI from 'openai';
 import { config } from './config';
 
 const client = config.openaiApiKey
-  ? new OpenAI({ apiKey: config.openaiApiKey })
+  ? new OpenAI({
+      apiKey: config.openaiApiKey,
+      baseURL: config.openaiBaseUrl
+    })
   : undefined;
 
 export const isOpenAIConfigured = () => Boolean(client);
+export const isWebSearchEnabled = () => config.openaiEnableWebSearch;
 
 export async function generateText({
   system,
@@ -18,6 +22,9 @@ export async function generateText({
 }) {
   if (!client) {
     throw new Error('OPENAI_API_KEY is not configured.');
+  }
+  if (!config.openaiEnableWebSearch) {
+    throw new Error('OPENAI_ENABLE_WEB_SEARCH is disabled.');
   }
 
   const response = await client.responses.create({

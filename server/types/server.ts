@@ -4,8 +4,11 @@ import type { QuestionnaireFieldMap, QuestionnairePreview } from '../../src/type
 
 export interface AppConfig {
   openaiApiKey?: string;
+  openaiBaseUrl?: string;
+  openaiProviderName: string;
   openaiTextModel: string;
   openaiVisionModel: string;
+  openaiEnableWebSearch: boolean;
   searchProvider: 'openai' | 'tavily' | 'bing';
   searchApiKey?: string;
   port: number;
