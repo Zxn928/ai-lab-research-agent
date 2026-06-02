@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { Header } from './Header';
 import { Sidebar } from './Sidebar';
 import type { Project } from '../../types/project';
+import { MobileNavigation } from './MobileNavigation';
 
 export function WorkspaceLayout({
   children,
@@ -17,7 +18,8 @@ export function WorkspaceLayout({
       <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col">
         <Header project={project} apiConfigured={apiConfigured} />
-        <main className="flex-1 p-4 md:p-6">{children}</main>
+        <MobileNavigation />
+        <main id="main-content" className="flex-1 p-4 md:p-6 lg:p-7">{children}</main>
       </div>
     </div>
   );

@@ -17,6 +17,7 @@ import {
 export const navGroups = [
   {
     title: '访谈前准备',
+    phase: '01',
     items: [
       { path: '/', label: '项目初始化', icon: FolderPlus },
       { path: '/company-research', label: '企业信息收集', icon: Search },
@@ -28,6 +29,7 @@ export const navGroups = [
   },
   {
     title: '访谈后诊断',
+    phase: '02',
     items: [
       { path: '/materials', label: '访谈材料导入', icon: FileText },
       { path: '/structuring', label: '访谈纪要结构化', icon: Boxes },
@@ -39,3 +41,14 @@ export const navGroups = [
     ]
   }
 ];
+
+export const navItems = navGroups.flatMap((group) =>
+  group.items.map((item, index) => ({
+    ...item,
+    groupTitle: group.title,
+    phase: group.phase,
+    step: navGroups
+      .slice(0, navGroups.indexOf(group))
+      .reduce((count, current) => count + current.items.length, 0) + index + 1
+  }))
+);

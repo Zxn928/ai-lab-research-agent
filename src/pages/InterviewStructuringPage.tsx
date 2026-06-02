@@ -37,7 +37,7 @@ export function InterviewStructuringPage({
   };
 
   return (
-    <PageShell title="访谈纪要结构化" description="把部门材料整理为事实、判断、推测和待核实事项可区分的结构化纪要。">
+    <PageShell title="访谈纪要结构化" description="把部门材料整理为事实、判断、推测和待核实事项可区分的结构化纪要。" eyebrow="访谈后诊断 / 08">
       <div className="grid gap-4">
         {state.interviewMaterials.map((material) => {
           const notes = state.structuredNotes.find((item) => item.departmentId === material.departmentId);

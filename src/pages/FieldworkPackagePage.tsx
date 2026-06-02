@@ -30,6 +30,7 @@ export function FieldworkPackagePage({
     <PageShell
       title="现场资料包导出"
       description="汇总访谈前材料，支持总 Markdown 导出。AI 未配置时也会用当前 JSON 数据生成基础资料包。"
+      eyebrow="访谈前准备 / 06"
       actions={
         <>
           <Button variant="secondary" onClick={generate}>

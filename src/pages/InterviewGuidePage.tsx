@@ -1,6 +1,7 @@
 import { Wand2 } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '../components/common/Button';
+import { EmptyState } from '../components/common/EmptyState';
 import { PageShell } from '../components/common/PageShell';
 import { Panel } from '../components/common/Panel';
 import { runAgent } from '../services/apiClient';
@@ -47,6 +48,7 @@ export function InterviewGuidePage({
     <PageShell
       title="访谈提纲生成"
       description="按部门逐个生成，避免上下文过长。每个部门的问题会围绕流程、数据、系统、异常、协同、成本、质量和交付展开。"
+      eyebrow="访谈前准备 / 05"
     >
       <div className="grid gap-4">
         {state.departments.map((department) => {
@@ -70,12 +72,12 @@ export function InterviewGuidePage({
                   <GuideBlock title="现场资料清单" items={guide.dataToCollect} />
                 </div>
               ) : (
-                <div className="text-sm text-muted">尚未生成该部门访谈提纲。</div>
+                <EmptyState title="尚未生成提纲" description="点击下方按钮，为该部门生成访谈目标、专属问题和现场资料清单。" />
               )}
             </Panel>
           );
         })}
-        {!state.departments.length && <Panel title="提示">请先在组织架构页面维护部门清单。</Panel>}
+        {!state.departments.length && <EmptyState title="暂无可访谈部门" description="请先在组织架构解析页面上传架构图或手动维护部门清单。" />}
       </div>
     </PageShell>
   );
