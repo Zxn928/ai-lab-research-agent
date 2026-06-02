@@ -8,6 +8,7 @@ export interface AppConfig {
   openaiProviderName: string;
   openaiTextModel: string;
   openaiVisionModel: string;
+  openaiTemperature?: number;
   openaiEnableWebSearch: boolean;
   searchProvider: 'openai' | 'tavily' | 'bing';
   searchApiKey?: string;

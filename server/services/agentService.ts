@@ -69,16 +69,17 @@ async function runInterviewGuide(input: {
   companyResearch?: string;
   questionnaireRecords?: QuestionnaireRecord[];
 }) {
-  const result = await generateJson<InterviewGuide>({
+  const rawResult = await generateJson<InterviewGuide>({
     system: `${jsonSystem}\n你负责为单个部门生成咨询顾问型访谈提纲。`,
     user: JSON.stringify({
       task:
-        '请为该部门生成访谈提纲 JSON，字段必须包含 id, departmentId, departmentName, interviewGoal, commonQuestions, departmentSpecificQuestions, deepDiveQuestions, dataToCollect, assumptionsToVerify, generatedAt。',
+        '请为该部门生成访谈提纲 JSON，字段必须包含 id, departmentId, departmentName, interviewGoal, commonQuestions, departmentSpecificQuestions, deepDiveQuestions, dataToCollect, assumptionsToVerify, generatedAt。interviewGoal 必须是字符串，commonQuestions、departmentSpecificQuestions、deepDiveQuestions、dataToCollect、assumptionsToVerify 必须是字符串数组。',
       department: input.department,
       companyResearch: input.companyResearch,
       questionnaireRecords: input.questionnaireRecords
     })
   });
+  const result = normalizeInterviewGuide(rawResult, input.department);
   const markdown = interviewGuideToMarkdown(result);
   return { result, markdown, warnings: [] };
 }
@@ -192,4 +193,50 @@ function interviewGuideToMarkdown(guide: InterviewGuide) {
     '## 需核实假设',
     list(guide.assumptionsToVerify)
   ].join('\n');
+}
+
+function normalizeInterviewGuide(raw: unknown, department: Department): InterviewGuide {
+  const guide = (raw || {}) as Partial<InterviewGuide> & Record<string, unknown>;
+  return {
+    id: asText(guide.id) || `guide-${department.id}-${Date.now()}`,
+    departmentId: asText(guide.departmentId) || department.id,
+    departmentName: asText(guide.departmentName) || department.name,
+    interviewGoal: asText(guide.interviewGoal),
+    commonQuestions: asTextList(guide.commonQuestions),
+    departmentSpecificQuestions: asTextList(guide.departmentSpecificQuestions),
+    deepDiveQuestions: asTextList(guide.deepDiveQuestions),
+    dataToCollect: asTextList(guide.dataToCollect),
+    assumptionsToVerify: asTextList(guide.assumptionsToVerify),
+    generatedAt: asText(guide.generatedAt) || new Date().toISOString()
+  };
+}
+
+function asTextList(value: unknown) {
+  if (!Array.isArray(value)) return value ? [asText(value)] : [];
+  return value.map(asText).filter(Boolean);
+}
+
+function asText(value: unknown): string {
+  if (value == null) return '';
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  if (Array.isArray(value)) return value.map(asText).filter(Boolean).join('；');
+
+  const record = value as Record<string, unknown>;
+  const preferred =
+    record.question ||
+    record.content ||
+    record.summary ||
+    record.title ||
+    record.name ||
+    record.assumption ||
+    record.item ||
+    record.description;
+
+  if (preferred) return asText(preferred);
+
+  return Object.entries(record)
+    .map(([key, item]) => `${key}：${asText(item)}`)
+    .filter(Boolean)
+    .join('；');
 }

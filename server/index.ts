@@ -27,6 +27,7 @@ app.get('/api/health', (_req, res) => {
 
 app.use((error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   const message = error instanceof Error ? error.message : 'Unknown error';
+  console.error(error);
   res.status(500).json({ error: message });
 });
 
