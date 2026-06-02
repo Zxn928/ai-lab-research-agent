@@ -50,10 +50,12 @@ export async function generateText({
 
 export async function generateWebResearch({
   system,
-  user
+  user,
+  maxOutputTokens = 1600
 }: {
   system: string;
   user: string;
+  maxOutputTokens?: number;
 }) {
   if (!client) {
     throw new Error('OPENAI_API_KEY is not configured.');
@@ -64,6 +66,7 @@ export async function generateWebResearch({
 
   const payload = {
     model: config.openaiTextModel,
+    max_output_tokens: maxOutputTokens,
     tools: [{ type: 'web_search' }],
     input: [
       {
@@ -78,7 +81,7 @@ export async function generateWebResearch({
   };
 
   const response: TextResponse = config.openaiBaseUrl
-    ? await createResponseWithFetch(payload)
+    ? await createResponseWithFetch(payload, { timeoutMs: 90000, retries: 1 })
     : ((await client.responses.create(payload as Parameters<typeof client.responses.create>[0])) as TextResponse);
 
   return response.output_text;
@@ -161,17 +164,44 @@ export async function analyzeImage({
   return response.output_text;
 }
 
-async function createResponseWithFetch(payload: Record<string, unknown>) {
+async function createResponseWithFetch(
+  payload: Record<string, unknown>,
+  options: { timeoutMs?: number; retries?: number } = {}
+) {
   const baseUrl = config.openaiBaseUrl?.replace(/\/$/, '');
-  const response = await fetch(`${baseUrl}/responses`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${config.openaiApiKey}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(payload)
-  });
+  const attempts = (options.retries || 0) + 1;
+  let lastError: unknown;
 
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    const controller = new AbortController();
+    const timeout = options.timeoutMs
+      ? setTimeout(() => controller.abort(), options.timeoutMs)
+      : undefined;
+
+    try {
+      const response = await fetch(`${baseUrl}/responses`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${config.openaiApiKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload),
+        signal: controller.signal
+      });
+
+      if (timeout) clearTimeout(timeout);
+      return await parseResponseFetchResult(response);
+    } catch (error) {
+      if (timeout) clearTimeout(timeout);
+      lastError = error;
+      if (attempt === attempts - 1) throw error;
+    }
+  }
+
+  throw lastError;
+}
+
+async function parseResponseFetchResult(response: Response): Promise<TextResponse> {
   const text = await response.text();
   if (!response.ok) {
     throw new Error(`Relay responses request failed (${response.status}): ${text.slice(0, 500)}`);

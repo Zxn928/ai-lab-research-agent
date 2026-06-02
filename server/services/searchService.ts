@@ -18,13 +18,14 @@ export async function researchCompany({
     const user = [
       `企业名称：${companyName}`,
       industry ? `行业：${industry}` : '',
-      '请联网检索并整理：企业基本信息、主营业务、产品服务、行业定位、官网资料、公开新闻、资质荣誉、招聘信息反映出的组织能力、可能业务流程、可能AI应用假设。',
-      '请在文末列出来源 URL。'
+      '请联网检索并输出一份精简访谈前企业画像。',
+      '只包含：企业基本信息、主营业务/产品服务、行业定位、公开新闻或官网要点、访谈前AI应用假设、来源URL。',
+      '控制在1000字以内，来源URL单独列出。'
     ]
       .filter(Boolean)
       .join('\n');
 
-    const publicResearch = await generateWebResearch({ system, user });
+    const publicResearch = await generateWebResearch({ system, user, maxOutputTokens: 1600 });
     return {
       publicResearch,
       sources: extractSources(publicResearch),
