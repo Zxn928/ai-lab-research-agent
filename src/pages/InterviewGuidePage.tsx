@@ -1,5 +1,6 @@
-import { Wand2 } from 'lucide-react';
+import { Loader2, Wand2 } from 'lucide-react';
 import { useState } from 'react';
+import { AgentProgress } from '../components/common/AgentProgress';
 import { Button } from '../components/common/Button';
 import { PageShell } from '../components/common/PageShell';
 import { Panel } from '../components/common/Panel';
@@ -57,11 +58,21 @@ export function InterviewGuidePage({
               title={department.name || '未命名部门'}
               footer={
                 <Button onClick={() => generate(department.id)} disabled={loadingId === department.id}>
-                  <Wand2 className="h-4 w-4" />
+                  {loadingId === department.id ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Wand2 className="h-4 w-4" />
+                  )}
                   {loadingId === department.id ? '生成中' : guide ? '重新生成' : '生成提纲'}
                 </Button>
               }
             >
+              <AgentProgress
+                active={loadingId === department.id}
+                title={`正在生成 ${department.name || '该部门'} 访谈提纲`}
+                detail="Agent 正在结合企业画像、问卷反馈和部门重点生成问题清单。"
+                steps={['整理部门上下文', '生成访谈目标', '设计专属问题', '补充深挖追问和资料清单']}
+              />
               {guide ? (
                 <div className="grid gap-4 md:grid-cols-2">
                   <GuideBlock title="访谈目标" items={[guide.interviewGoal]} />

@@ -1,5 +1,6 @@
 import { CheckCircle2, FileSpreadsheet, Loader2, XCircle, Wand2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { AgentProgress } from '../components/common/AgentProgress';
 import { Button } from '../components/common/Button';
 import { Field } from '../components/common/Field';
 import { PageShell } from '../components/common/PageShell';
@@ -61,7 +62,7 @@ export function QuestionnaireImportPage({
         role: guess(result.headers, ['岗位', '职位', '职务']),
         submittedAt: guess(result.headers, ['提交时间', '时间']),
         notes: guess(result.headers, ['备注']),
-      questionColumns: result.headers.filter((header) => !isMetadataColumn(header))
+        questionColumns: result.headers.filter((header) => !isMetadataColumn(header))
       });
     }
     setStatus({ type: 'idle', message: `${target.name} 预览完成。` });
@@ -196,6 +197,12 @@ export function QuestionnaireImportPage({
         <Panel title="字段映射 / AI分析区">
           {preview ? (
             <div className="space-y-5">
+              <AgentProgress
+                active={loading}
+                title="正在处理问卷数据"
+                detail={status.message || '正在解析文件并进行 AI 分析，请稍等。'}
+                steps={['读取 Excel/CSV', '转换为统一 JSON', '按部门聚合反馈', '生成痛点与核实问题']}
+              />
               {preview.sheetNames && (
                 <Field label="工作表">
                   <select
