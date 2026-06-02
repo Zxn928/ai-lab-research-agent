@@ -1,4 +1,4 @@
-import { FileSpreadsheet, Wand2 } from 'lucide-react';
+import { CheckCircle2, FileSpreadsheet, Loader2, XCircle, Wand2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Button } from '../components/common/Button';
 import { Field } from '../components/common/Field';
@@ -16,10 +16,16 @@ export function QuestionnaireImportPage({
   updateState: (next: Partial<WorkspaceState>) => void;
 }) {
   const [file, setFile] = useState<File>();
+  const [files, setFiles] = useState<File[]>([]);
+  const [activeFileIndex, setActiveFileIndex] = useState(0);
   const [preview, setPreview] = useState<QuestionnairePreview>();
   const [sheetName, setSheetName] = useState<string>();
   const [fieldMap, setFieldMap] = useState<QuestionnaireFieldMap>({});
   const [loading, setLoading] = useState(false);
+  const [status, setStatus] = useState<{
+    type: 'idle' | 'previewing' | 'parsing' | 'analyzing' | 'success' | 'warning' | 'error';
+    message: string;
+  }>({ type: 'idle', message: '' });
 
   const questionColumns = useMemo(() => {
     const fixed = new Set([
@@ -34,37 +40,82 @@ export function QuestionnaireImportPage({
     return (preview?.headers || []).filter((header) => !fixed.has(header));
   }, [fieldMap, preview]);
 
-  const onSelectFile = async (target?: File) => {
-    if (!target) return;
+  const onSelectFiles = async (targets?: FileList | null) => {
+    const selected = Array.from(targets || []);
+    if (!selected.length) return;
+    setFiles(selected);
+    setActiveFileIndex(0);
+    await loadPreview(selected[0], true);
+  };
+
+  const loadPreview = async (target: File, resetMapping = false) => {
     setFile(target);
+    setStatus({ type: 'previewing', message: `正在读取 ${target.name} 的字段预览...` });
     const result = await previewQuestionnaire(target);
     setPreview(result);
     setSheetName(result.sheetNames?.[0]);
-    setFieldMap({
-      department: guess(result.headers, ['部门', '所属部门']),
-      name: guess(result.headers, ['姓名', '名字']),
-      role: guess(result.headers, ['岗位', '职位', '职务']),
-      submittedAt: guess(result.headers, ['提交时间', '时间']),
-      notes: guess(result.headers, ['备注']),
-      questionColumns: result.headers.filter(
-        (header) => !['部门', '所属部门', '姓名', '岗位', '职位', '职务', '提交时间', '时间', '备注'].some((key) => header.includes(key))
-      )
-    });
+    if (resetMapping) {
+      setFieldMap({
+        department: guess(result.headers, ['部门', '所属部门']),
+        name: guess(result.headers, ['姓名', '名字']),
+        role: guess(result.headers, ['岗位', '职位', '职务']),
+        submittedAt: guess(result.headers, ['提交时间', '时间']),
+        notes: guess(result.headers, ['备注']),
+      questionColumns: result.headers.filter((header) => !isMetadataColumn(header))
+      });
+    }
+    setStatus({ type: 'idle', message: `${target.name} 预览完成。` });
+  };
+
+  const selectActiveFile = async (index: number) => {
+    const next = files[index];
+    if (!next) return;
+    setActiveFileIndex(index);
+    await loadPreview(next);
   };
 
   const parse = async () => {
-    if (!file) return;
+    const targets = files.length ? files : file ? [file] : [];
+    if (!targets.length) return;
     setLoading(true);
     try {
-      const parsed = await parseQuestionnaire(file, fieldMap, sheetName);
-      const agentResult = await runAgent<{ departmentSummaries: WorkspaceState['questionnaireSummaries'] }>({
-        agentName: 'questionnaireAnalysisAgent',
-        input: { records: parsed.records }
-      });
+      setStatus({ type: 'parsing', message: `正在解析 ${targets.length} 个文件...` });
+      const parsedResults = [];
+      for (const [index, target] of targets.entries()) {
+        setStatus({ type: 'parsing', message: `正在解析 ${index + 1}/${targets.length}：${target.name}` });
+        parsedResults.push(await parseQuestionnaire(target, fieldMap, sheetName));
+      }
+      const records = parsedResults.flatMap((result) => result.records);
       updateState({
-        questionnaireRecords: parsed.records,
-        questionnaireSummaries: agentResult.result.departmentSummaries || []
+        questionnaireRecords: records,
+        questionnaireSummaries: []
       });
+      setStatus({ type: 'analyzing', message: `已解析 ${records.length} 条问卷记录，正在进行 AI 分析...` });
+
+      try {
+        const agentResult = await runAgent<{ departmentSummaries: WorkspaceState['questionnaireSummaries'] }>({
+          agentName: 'questionnaireAnalysisAgent',
+          input: { records }
+        });
+        const summaries = agentResult.result.departmentSummaries || [];
+        updateState({
+          questionnaireRecords: records,
+          questionnaireSummaries: summaries
+        });
+        setStatus({
+          type: 'success',
+          message: `完成：已解析 ${targets.length} 个文件、${records.length} 条记录，生成 ${summaries.length} 个部门摘要。`
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'AI 分析失败';
+        setStatus({
+          type: 'warning',
+          message: `已解析 ${targets.length} 个文件、${records.length} 条记录，但 AI 分析失败：${message}`
+        });
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '解析失败';
+      setStatus({ type: 'error', message });
     } finally {
       setLoading(false);
     }
@@ -76,7 +127,8 @@ export function QuestionnaireImportPage({
       description="P0 优先支持 Excel，也兼容 CSV。真实问卷常见的一行一人、多列问题答案会被转换成统一 JSON 记录。"
       actions={
         <Button onClick={parse} disabled={!file || loading}>
-          <Wand2 className="h-4 w-4" /> {loading ? '解析分析中' : '解析并分析'}
+          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
+          {loading ? '解析分析中' : files.length > 1 ? `批量解析 ${files.length} 个文件` : '解析并分析'}
         </Button>
       }
     >
@@ -84,17 +136,62 @@ export function QuestionnaireImportPage({
         <Panel title="输入区">
           <label className="flex min-h-40 cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed border-line bg-panel px-4 text-center text-sm text-muted">
             <FileSpreadsheet className="mb-3 h-8 w-8 text-brand" />
-            {file ? file.name : '上传 Excel 或 CSV'}
+            {file ? file.name : '批量上传 Excel 或 CSV'}
             <input
               className="sr-only"
               type="file"
               accept=".xlsx,.xls,.csv"
-              onChange={(event) => onSelectFile(event.target.files?.[0])}
+              multiple
+              onChange={(event) => onSelectFiles(event.target.files)}
             />
           </label>
           <p className="mt-3 text-sm leading-6 text-muted">
-            尚未检测到胜业电气问卷 Excel/CSV，请将文件放入 public/demo/shengye-electric/questionnaire-sample.csv 或在此上传。
+            支持一次选择多个 Excel/CSV。字段映射会应用到本次选择的所有文件，适合多份同结构问卷。
           </p>
+          {files.length > 0 && (
+            <div className="mt-4 space-y-2">
+              <div className="text-sm font-semibold text-slate-700">已选择文件</div>
+              {files.map((item, index) => (
+                <button
+                  key={`${item.name}-${item.size}-${index}`}
+                  type="button"
+                  onClick={() => selectActiveFile(index)}
+                  className={[
+                    'w-full rounded-md border px-3 py-2 text-left text-sm transition',
+                    index === activeFileIndex
+                      ? 'border-brand bg-teal-50 text-brand'
+                      : 'border-line bg-white text-slate-700 hover:bg-slate-50'
+                  ].join(' ')}
+                >
+                  <span className="font-semibold">{index + 1}. </span>
+                  {item.name}
+                </button>
+              ))}
+            </div>
+          )}
+          {status.message && (
+            <div
+              className={[
+                'mt-4 flex gap-2 rounded-md border px-3 py-2 text-sm leading-6',
+                status.type === 'success'
+                  ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                  : status.type === 'warning'
+                    ? 'border-amber-200 bg-amber-50 text-amber-800'
+                    : status.type === 'error'
+                      ? 'border-red-200 bg-red-50 text-red-700'
+                      : 'border-line bg-panel text-slate-700'
+              ].join(' ')}
+            >
+              {status.type === 'success' ? (
+                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
+              ) : status.type === 'error' ? (
+                <XCircle className="mt-0.5 h-4 w-4 shrink-0" />
+              ) : loading ? (
+                <Loader2 className="mt-0.5 h-4 w-4 shrink-0 animate-spin" />
+              ) : null}
+              <span>{status.message}</span>
+            </div>
+          )}
         </Panel>
         <Panel title="字段映射 / AI分析区">
           {preview ? (
@@ -178,6 +275,34 @@ export function QuestionnaireImportPage({
                   </tbody>
                 </table>
               </div>
+              <div className="grid gap-3 md:grid-cols-3">
+                <div className="rounded-md border border-line bg-panel px-3 py-2">
+                  <div className="text-xs font-semibold text-muted">已导入记录</div>
+                  <div className="mt-1 text-lg font-bold text-ink">{state.questionnaireRecords.length}</div>
+                </div>
+                <div className="rounded-md border border-line bg-panel px-3 py-2">
+                  <div className="text-xs font-semibold text-muted">部门摘要</div>
+                  <div className="mt-1 text-lg font-bold text-ink">{state.questionnaireSummaries.length}</div>
+                </div>
+                <div className="rounded-md border border-line bg-panel px-3 py-2">
+                  <div className="text-xs font-semibold text-muted">已选问题列</div>
+                  <div className="mt-1 text-lg font-bold text-ink">{fieldMap.questionColumns?.length || 0}</div>
+                </div>
+              </div>
+              {state.questionnaireSummaries.length > 0 && (
+                <div className="space-y-3">
+                  <div className="text-sm font-semibold text-slate-700">AI 分析结果</div>
+                  {state.questionnaireSummaries.map((summary) => (
+                    <div key={summary.departmentName} className="rounded-md border border-line bg-panel p-3 text-sm leading-6 text-slate-700">
+                      <div className="font-semibold text-ink">{summary.departmentName}</div>
+                      <p className="mt-1">{summary.summary}</p>
+                      {summary.initialPainPoints?.length > 0 && (
+                        <p className="mt-2 text-muted">初步痛点：{summary.initialPainPoints.join('；')}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           ) : (
             <div className="text-sm text-muted">请先上传真实问卷文件。</div>
@@ -198,4 +323,22 @@ const fieldLabels = {
 
 function guess(headers: string[], keys: string[]) {
   return headers.find((header) => keys.some((key) => header.includes(key)));
+}
+
+function isMetadataColumn(header: string) {
+  return [
+    '部门',
+    '所属部门',
+    '姓名',
+    '名字',
+    '岗位',
+    '职位',
+    '职务',
+    '提交时间',
+    '答卷时间',
+    '所用时间',
+    '来源',
+    '来源详情',
+    '备注'
+  ].some((key) => header.includes(key));
 }

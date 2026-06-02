@@ -33,7 +33,7 @@ async function loadWorkbook(buffer: Buffer) {
 }
 
 function selectWorksheet(workbook: ExcelJS.Workbook, sheetName?: string) {
-  const sheet = sheetName ? workbook.getWorksheet(sheetName) : workbook.worksheets[0];
+  const sheet = sheetName ? workbook.getWorksheet(sheetName) || workbook.worksheets[0] : workbook.worksheets[0];
   if (!sheet) throw new Error('Excel 文件中没有可读取的工作表。');
   return sheet;
 }
