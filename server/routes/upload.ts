@@ -13,6 +13,10 @@ uploadRouter.post('/questionnaire/preview', upload.single('file'), async (req, r
       res.status(400).json({ error: 'file is required' });
       return;
     }
+    if (isLegacyExcel(req.file.originalname)) {
+      res.status(400).json({ error: '暂不支持老式 .xls 文件，请先另存为 .xlsx 或 CSV 后再上传。' });
+      return;
+    }
     const sheetName = req.body.sheetName as string | undefined;
     const preview = isExcel(req.file.originalname)
       ? await parseExcelPreview(req.file.buffer, sheetName)
@@ -29,6 +33,10 @@ uploadRouter.post('/questionnaire/parse', upload.single('file'), async (req, res
       res.status(400).json({ error: 'file is required' });
       return;
     }
+    if (isLegacyExcel(req.file.originalname)) {
+      res.status(400).json({ error: '暂不支持老式 .xls 文件，请先另存为 .xlsx 或 CSV 后再上传。' });
+      return;
+    }
     const fieldMap = JSON.parse(req.body.fieldMap || '{}');
     const sheetName = req.body.sheetName as string | undefined;
     const records = isExcel(req.file.originalname)
@@ -41,5 +49,9 @@ uploadRouter.post('/questionnaire/parse', upload.single('file'), async (req, res
 });
 
 function isExcel(fileName: string) {
-  return /\.(xlsx|xls)$/i.test(fileName);
+  return /\.xlsx$/i.test(fileName);
+}
+
+function isLegacyExcel(fileName: string) {
+  return /\.xls$/i.test(fileName);
 }

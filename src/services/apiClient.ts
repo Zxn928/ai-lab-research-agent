@@ -23,7 +23,7 @@ export async function researchCompany(input: {
     headers: jsonHeaders,
     body: JSON.stringify(input)
   });
-  assertOk(response);
+  await assertOk(response);
   const result = await response.json();
   return {
     companyName: input.companyName,
@@ -42,7 +42,7 @@ export async function previewQuestionnaire(file: File, sheetName?: string) {
     method: 'POST',
     body: form
   });
-  assertOk(response);
+  await assertOk(response);
   return response.json() as Promise<QuestionnairePreview>;
 }
 
@@ -59,7 +59,7 @@ export async function parseQuestionnaire(
     method: 'POST',
     body: form
   });
-  assertOk(response);
+  await assertOk(response);
   return response.json() as Promise<{ records: QuestionnaireRecord[] }>;
 }
 
@@ -70,7 +70,7 @@ export async function parseOrgStructure(image: File) {
     method: 'POST',
     body: form
   });
-  assertOk(response);
+  await assertOk(response);
   return response.json();
 }
 
@@ -82,7 +82,7 @@ export async function runAgent<TResult = unknown, TInput = unknown>(
     headers: jsonHeaders,
     body: JSON.stringify(request)
   });
-  assertOk(response);
+  await assertOk(response);
   return response.json() as Promise<AgentRunResponse<TResult>>;
 }
 
@@ -92,7 +92,7 @@ export async function exportMarkdown(title: string, markdown: string) {
     headers: jsonHeaders,
     body: JSON.stringify({ title, markdown })
   });
-  assertOk(response);
+  await assertOk(response);
   const blob = await response.blob();
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -102,8 +102,15 @@ export async function exportMarkdown(title: string, markdown: string) {
   URL.revokeObjectURL(url);
 }
 
-function assertOk(response: Response) {
+async function assertOk(response: Response) {
   if (!response.ok) {
-    throw new Error(`Request failed: ${response.status}`);
+    let message = `Request failed: ${response.status}`;
+    try {
+      const body = (await response.json()) as { error?: string; message?: string };
+      message = body.error || body.message || message;
+    } catch {
+      // Keep the status-code fallback when the response is not JSON.
+    }
+    throw new Error(message);
   }
 }

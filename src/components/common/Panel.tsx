@@ -5,7 +5,7 @@ export function Panel({
   children,
   footer
 }: {
-  title: string;
+  title: ReactNode;
   children: ReactNode;
   footer?: ReactNode;
 }) {

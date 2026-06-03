@@ -28,6 +28,12 @@ export function QuestionnaireImportPage({
     message: string;
   }>({ type: 'idle', message: '' });
 
+  const previewHeaders = preview?.headers ?? [];
+  const previewRows = preview?.rows ?? [];
+  const previewSheetNames = preview?.sheetNames ?? [];
+  const previewing = status.type === 'previewing';
+  const busy = loading || previewing;
+
   const questionColumns = useMemo(() => {
     const fixed = new Set([
       fieldMap.department,
@@ -38,23 +44,29 @@ export function QuestionnaireImportPage({
       fieldMap.question,
       fieldMap.answer
     ]);
-    return (preview?.headers || []).filter((header) => !fixed.has(header));
-  }, [fieldMap, preview]);
+    return previewHeaders.filter((header) => !fixed.has(header));
+  }, [fieldMap, previewHeaders]);
 
   const onSelectFiles = async (targets?: FileList | null) => {
     const selected = Array.from(targets || []);
     if (!selected.length) return;
     setFiles(selected);
     setActiveFileIndex(0);
-    await loadPreview(selected[0], true);
+    try {
+      await loadPreview(selected[0], true);
+    } catch (error) {
+      setPreview(undefined);
+      setFieldMap({});
+      setStatus({ type: 'error', message: getUploadErrorMessage(error) });
+    }
   };
 
   const loadPreview = async (target: File, resetMapping = false) => {
     setFile(target);
     setStatus({ type: 'previewing', message: `正在读取 ${target.name} 的字段预览...` });
-    const result = await previewQuestionnaire(target);
+    const result = normalizePreview(await previewQuestionnaire(target));
     setPreview(result);
-    setSheetName(result.sheetNames?.[0]);
+    setSheetName(result.sheetNames?.[0] ?? '');
     if (resetMapping) {
       setFieldMap({
         department: guess(result.headers, ['部门', '所属部门']),
@@ -72,7 +84,12 @@ export function QuestionnaireImportPage({
     const next = files[index];
     if (!next) return;
     setActiveFileIndex(index);
-    await loadPreview(next);
+    try {
+      await loadPreview(next);
+    } catch (error) {
+      setPreview(undefined);
+      setStatus({ type: 'error', message: getUploadErrorMessage(error) });
+    }
   };
 
   const parse = async () => {
@@ -127,9 +144,9 @@ export function QuestionnaireImportPage({
       title="问卷反馈导入"
       description="P0 优先支持 Excel，也兼容 CSV。真实问卷常见的一行一人、多列问题答案会被转换成统一 JSON 记录。"
       actions={
-        <Button onClick={parse} disabled={!file || loading}>
-          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
-          {loading ? '解析分析中' : files.length > 1 ? `批量解析 ${files.length} 个文件` : '解析并分析'}
+        <Button onClick={parse} disabled={!file || busy}>
+          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
+          {previewing ? '读取预览中' : loading ? '解析分析中' : files.length > 1 ? `批量解析 ${files.length} 个文件` : '解析并分析'}
         </Button>
       }
     >
@@ -187,7 +204,7 @@ export function QuestionnaireImportPage({
                 <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
               ) : status.type === 'error' ? (
                 <XCircle className="mt-0.5 h-4 w-4 shrink-0" />
-              ) : loading ? (
+              ) : busy ? (
                 <Loader2 className="mt-0.5 h-4 w-4 shrink-0 animate-spin" />
               ) : null}
               <span>{status.message}</span>
@@ -198,20 +215,22 @@ export function QuestionnaireImportPage({
           {preview ? (
             <div className="space-y-5">
               <AgentProgress
-                active={loading}
+                active={busy}
                 title="正在处理问卷数据"
                 detail={status.message || '正在解析文件并进行 AI 分析，请稍等。'}
                 steps={['读取 Excel/CSV', '转换为统一 JSON', '按部门聚合反馈', '生成痛点与核实问题']}
               />
-              {preview.sheetNames && (
+              {previewSheetNames.length > 0 && (
                 <Field label="工作表">
                   <select
                     className="min-h-11 w-full rounded-md border border-line px-3"
-                    value={sheetName}
+                    value={sheetName || previewSheetNames[0] || ''}
                     onChange={(event) => setSheetName(event.target.value)}
                   >
-                    {preview.sheetNames.map((name) => (
-                      <option key={name}>{name}</option>
+                    {previewSheetNames.map((name) => (
+                      <option key={name} value={name}>
+                        {name}
+                      </option>
                     ))}
                   </select>
                 </Field>
@@ -225,7 +244,7 @@ export function QuestionnaireImportPage({
                       onChange={(event) => setFieldMap({ ...fieldMap, [key]: event.target.value })}
                     >
                       <option value="">不映射</option>
-                      {preview.headers.map((header) => (
+                      {previewHeaders.map((header) => (
                         <option key={header}>{header}</option>
                       ))}
                     </select>
@@ -262,7 +281,7 @@ export function QuestionnaireImportPage({
                 <table className="min-w-full text-left text-sm">
                   <thead className="bg-panel text-xs font-semibold text-muted">
                     <tr>
-                      {preview.headers.map((header) => (
+                      {previewHeaders.map((header) => (
                         <th key={header} className="whitespace-nowrap px-3 py-2">
                           {header}
                         </th>
@@ -270,9 +289,9 @@ export function QuestionnaireImportPage({
                     </tr>
                   </thead>
                   <tbody>
-                    {preview.rows.slice(0, 5).map((row, index) => (
+                    {previewRows.slice(0, 5).map((row, index) => (
                       <tr key={index} className="border-t border-line">
-                        {preview.headers.map((header) => (
+                        {previewHeaders.map((header) => (
                           <td key={header} className="max-w-64 truncate px-3 py-2">
                             {row[header]}
                           </td>
@@ -330,6 +349,33 @@ const fieldLabels = {
 
 function guess(headers: string[], keys: string[]) {
   return headers.find((header) => keys.some((key) => header.includes(key)));
+}
+
+function normalizePreview(result: QuestionnairePreview): QuestionnairePreview {
+  const headers = Array.isArray(result.headers)
+    ? result.headers.filter((header): header is string => typeof header === 'string' && header.length > 0)
+    : [];
+  const rows = Array.isArray(result.rows)
+    ? result.rows.map((row) => {
+        if (!row || typeof row !== 'object') return {};
+        return Object.fromEntries(
+          Object.entries(row).map(([key, value]) => [key, String(value ?? '')])
+        );
+      })
+    : [];
+  const sheetNames = Array.isArray(result.sheetNames)
+    ? result.sheetNames.filter((name): name is string => typeof name === 'string' && name.length > 0)
+    : undefined;
+
+  return { headers, rows, sheetNames };
+}
+
+function getUploadErrorMessage(error: unknown) {
+  const message = error instanceof Error ? error.message : '文件读取失败';
+  if (/\.xls\b/i.test(message)) {
+    return '暂不支持老式 .xls 文件，请先另存为 .xlsx 或 CSV 后再上传。';
+  }
+  return `文件预览失败：${message}`;
 }
 
 function isMetadataColumn(header: string) {

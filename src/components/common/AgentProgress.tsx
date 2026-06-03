@@ -1,4 +1,4 @@
-import { Loader2 } from 'lucide-react';
+import { CheckCircle2, CircleDashed, Loader2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
 export function AgentProgress({
@@ -31,33 +31,76 @@ export function AgentProgress({
 
   if (!active) return null;
 
+  const progress = steps.length ? Math.round(((activeIndex + 1) / steps.length) * 100) : 25;
+
   return (
-    <div className="rounded-lg border border-teal-200 bg-teal-50 p-4 text-sm text-teal-900">
-      <div className="flex items-start gap-3">
-        <Loader2 className="mt-0.5 h-5 w-5 shrink-0 animate-spin text-brand" />
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-            <div className="font-bold">{title}</div>
-            <div className="text-xs font-semibold text-teal-700">已等待 {seconds}s</div>
+    <div
+      role="status"
+      aria-live="polite"
+      className="rounded-lg border border-slate-200 bg-white p-4 text-sm shadow-sm"
+    >
+      <div className="flex flex-col gap-4">
+        <div className="flex items-start gap-3">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md bg-brand text-white shadow-sm">
+            <Loader2 className="h-5 w-5 animate-spin" />
           </div>
-          {detail && <p className="mt-1 leading-6 text-teal-800">{detail}</p>}
-          <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white">
-            <div className="h-full w-1/2 animate-pulse rounded-full bg-brand" />
-          </div>
-          <div className="mt-3 grid gap-2 md:grid-cols-2">
-            {steps.map((step, index) => (
-              <div
-                key={step}
-                className={[
-                  'rounded-md border px-3 py-2 text-xs font-semibold',
-                  index <= activeIndex
-                    ? 'border-teal-300 bg-white text-brand'
-                    : 'border-teal-100 bg-teal-50 text-teal-700/70'
-                ].join(' ')}
-              >
-                {index + 1}. {step}
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <div className="text-base font-bold text-ink">{title}</div>
+                {detail && <p className="mt-1 max-w-3xl leading-6 text-slate-600">{detail}</p>}
               </div>
-            ))}
+              <div className="inline-flex w-fit shrink-0 items-center rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-800">
+                已等待 {seconds}s
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-brand via-sky-500 to-emerald-500 transition-all duration-300"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+          <div className="mt-3 grid gap-2 md:grid-cols-4">
+            {steps.map((step, index) => {
+              const completed = index < activeIndex;
+              const current = index === activeIndex;
+              return (
+                <div
+                  key={step}
+                  className={[
+                    'min-h-20 rounded-md border px-3 py-3 transition',
+                    completed
+                      ? 'border-emerald-200 bg-emerald-50'
+                      : current
+                        ? 'border-sky-200 bg-sky-50'
+                        : 'border-slate-200 bg-slate-50'
+                  ].join(' ')}
+                >
+                  <div className="mb-2 flex items-center justify-between">
+                    <span className="text-xs font-semibold text-slate-500">STEP {index + 1}</span>
+                    {completed ? (
+                      <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                    ) : current ? (
+                      <Loader2 className="h-4 w-4 animate-spin text-sky-600" />
+                    ) : (
+                      <CircleDashed className="h-4 w-4 text-slate-400" />
+                    )}
+                  </div>
+                  <div
+                    className={[
+                      'leading-5',
+                      completed ? 'font-semibold text-emerald-800' : current ? 'font-semibold text-sky-800' : 'text-slate-500'
+                    ].join(' ')}
+                  >
+                    {step}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>
